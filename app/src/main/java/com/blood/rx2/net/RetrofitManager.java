@@ -10,7 +10,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class RetrofitManager {
 
     // 接口根地址
-    private static final String BASE_URL = "";
+    private static final String BASE_URL = "http://fy.iciba.com/";
     // 设置超时时间
     private static final long DEFAULT_TIMEOUT = 3_000L;
 

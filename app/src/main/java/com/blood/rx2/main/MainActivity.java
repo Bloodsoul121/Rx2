@@ -2,10 +2,10 @@ package com.blood.rx2.main;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 
 import com.blood.rx2.R;
 import com.blood.rx2.model.Translation;
@@ -30,6 +30,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.BiConsumer;
 import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.BooleanSupplier;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
@@ -72,6 +73,8 @@ public class MainActivity extends AppCompatActivity {
         list.add("合并数据源 & 同时展示 merge");
         list.add("合并数据源 & 同时展示 zip");
         list.add("联合判断多个事件（表单）");
+        list.add("功能防抖");
+        list.add("联想搜索优化");
         list.add("create");
         list.add("just");
         list.add("fromArray");
@@ -95,6 +98,13 @@ public class MainActivity extends AppCompatActivity {
         list.add("collect");
         list.add("startWith");
         list.add("count");
+        list.add("subscribe");
+        list.add("delay");
+        list.add("onErrorReturn");
+        list.add("onErrorResumeNext");
+        list.add("retry");
+        list.add("retryUntil");
+        list.add("retryWhen");
         list.add("all");
         list.add("takeWhile");
         list.add("skipWhile");
@@ -108,6 +118,16 @@ public class MainActivity extends AppCompatActivity {
         list.add("defaultIfEmpty");
         list.add("repeat");
         list.add("repeatWhen");
+        list.add("filter");
+        list.add("ofType");
+        list.add("skip");
+        list.add("distinct");
+        list.add("take");
+        list.add("throttleFirst");
+        list.add("sample");
+        list.add("firstElement");
+        list.add("elementAt");
+        list.add("elementAtOrError");
         return list;
     }
 
@@ -133,6 +153,12 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case "联合判断多个事件（表单）":
                 startActivity(new Intent(this, FormActivity.class));
+                break;
+            case "功能防抖":
+                shake_function();
+                break;
+            case "联想搜索优化":
+                associative_word();
                 break;
             case "create":
                 create();
@@ -203,6 +229,27 @@ public class MainActivity extends AppCompatActivity {
             case "count":
                 count();
                 break;
+            case "subscribe":
+                subscribe();
+                break;
+            case "delay":
+                delay();
+                break;
+            case "onErrorReturn":
+                onErrorReturn();
+                break;
+            case "onErrorResumeNext":
+                onErrorResumeNext();
+                break;
+            case "retry":
+                retry();
+                break;
+            case "retryUntil":
+                retryUntil();
+                break;
+            case "retryWhen":
+                retryWhen();
+                break;
             case "all":
                 all();
                 break;
@@ -242,7 +289,556 @@ public class MainActivity extends AppCompatActivity {
             case "repeatWhen":
                 repeatWhen();
                 break;
+            case "filter":
+                filter();
+                break;
+            case "ofType":
+                ofType();
+                break;
+            case "skip":
+                skip();
+                break;
+            case "distinct":
+                distinct();
+                break;
+            case "take":
+                take();
+                break;
+            case "throttleFirst":
+                throttleFirst();
+                break;
+            case "sample":
+                sample();
+                break;
+            case "firstElement":
+                firstElement();
+                break;
+            case "elementAt":
+                elementAt();
+                break;
+            case "elementAtOrError":
+                elementAtOrError();
+                break;
         }
+    }
+
+    private void associative_word() {
+        startActivity(new Intent(this, AssociativeWordActivity.class));
+    }
+
+    private void shake_function() {
+        startActivity(new Intent(this, ShakeActivity.class));
+    }
+
+    // 在elementAt（）的基础上，当出现越界情况（即获取的位置索引 ＞ 发送事件序列长度）时，即抛出异常
+    private void elementAtOrError() {
+        Observable.just(1, 2, 3, 4, 5)
+                .elementAtOrError(6)
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("获取到的事件元素是： " + integer);
+                    }
+                });
+
+        /*
+        05-08 18:20:41.559 1569-1569/com.blood.rx2 E/AndroidRuntime: FATAL EXCEPTION: main
+        Process: com.blood.rx2, PID: 1569
+        io.reactivex.exceptions.OnErrorNotImplementedException: The exception was not handled due to missing onError handler in the subscribe() method call.
+         */
+    }
+
+    private void elementAt() {
+        // 使用1：获取位置索引 = 2的 元素
+        // 位置索引从0开始
+        Observable.just(1, 2, 3, 4, 5)
+                .elementAt(2)
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("获取到的事件元素是： " + integer);
+                    }
+                });
+
+        // 使用2：获取的位置索引 ＞ 发送事件序列长度时，设置默认参数
+        Observable.just(1, 2, 3, 4, 5)
+                .elementAt(6, 10)
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("获取到的事件元素是： " + integer);
+                    }
+                });
+
+        /*
+        05-08 18:19:20.250 32463-32463/com.blood.rx2 I/LLOG --->: 获取到的事件元素是： 3
+        05-08 18:19:20.253 32463-32463/com.blood.rx2 I/LLOG --->: 获取到的事件元素是： 10
+         */
+    }
+
+    private void firstElement() {
+        // 获取第1个元素
+        Observable.just(1, 2, 3, 4, 5)
+                .firstElement()
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("获取到的第一个事件是： " + integer);
+                    }
+                });
+
+        // 获取最后1个元素
+        Observable.just(1, 2, 3, 4, 5)
+                .lastElement()
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("获取到的最后1个事件是： " + integer);
+                    }
+                });
+
+        /*
+        05-08 18:17:29.220 31244-31244/com.blood.rx2 I/LLOG --->: 获取到的第一个事件是： 1
+        05-08 18:17:29.221 31244-31244/com.blood.rx2 I/LLOG --->: 获取到的最后1个事件是： 5
+         */
+    }
+
+    // 在某段时间内，只发送该段时间内最新（最后）1次事件，与 throttleLast（） 操作符类似
+    private void sample() {
+        Observable.intervalRange(1, 10, 0, 1, TimeUnit.SECONDS)
+                .sample(3, TimeUnit.SECONDS)
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        LLog.i("sample " + aLong);
+                    }
+                });
+
+        /*
+        05-08 18:13:29.089 25882-30045/com.blood.rx2 I/LLOG --->: sample 3
+        05-08 18:13:32.088 25882-30045/com.blood.rx2 I/LLOG --->: sample 6
+        05-08 18:13:35.089 25882-30045/com.blood.rx2 I/LLOG --->: sample 9
+         */
+    }
+
+    // 在某段时间内，只发送该段时间内第1次事件 / 最后1次事件（throttleLast）
+    private void throttleFirst() {
+        Observable.intervalRange(1, 10, 1, 1, TimeUnit.SECONDS)
+                .throttleFirst(3, TimeUnit.SECONDS)
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        LLog.i("throttleFirst " + aLong);
+                    }
+                });
+
+        /*
+        05-08 17:57:42.760 24378-24784/com.blood.rx2 I/LLOG --->: throttleFirst 1
+        05-08 17:57:46.759 24378-24784/com.blood.rx2 I/LLOG --->: throttleFirst 5
+        05-08 17:57:50.759 24378-24784/com.blood.rx2 I/LLOG --->: throttleFirst 9
+         */
+    }
+
+    // 指定观察者最多能接收到的事件数量
+    private void take() {
+        Observable.intervalRange(1, 6, 1, 1, TimeUnit.SECONDS)
+                .take(3)
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        LLog.i("take " + aLong);
+                    }
+                });
+
+        Observable.intervalRange(1, 6, 1, 1, TimeUnit.SECONDS)
+                .takeLast(3)
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        LLog.i("takeLast " + aLong);
+                    }
+                });
+
+        /*
+        05-08 17:50:38.696 20038-20590/com.blood.rx2 I/LLOG --->: take 1
+        05-08 17:50:39.696 20038-20590/com.blood.rx2 I/LLOG --->: take 2
+        05-08 17:50:40.695 20038-20590/com.blood.rx2 I/LLOG --->: take 3
+
+        // 同时打印出来
+        05-08 17:53:58.661 22106-23199/com.blood.rx2 I/LLOG --->: takeLast 4
+        05-08 17:53:58.661 22106-23199/com.blood.rx2 I/LLOG --->: takeLast 5
+        05-08 17:53:58.661 22106-23199/com.blood.rx2 I/LLOG --->: takeLast 6
+         */
+    }
+
+    // 过滤事件序列中重复的事件 / 连续重复的事件
+    private void distinct() {
+        // 使用1：过滤事件序列中重复的事件
+        Observable.just(1, 2, 3, 1, 2)
+                .distinct()
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("不重复的整型事件元素是： " + integer);
+                    }
+                });
+
+        // 使用2：过滤事件序列中 连续重复的事件
+        // 下面序列中，连续重复的事件 = 3、4
+        Observable.just(1, 2, 3, 1, 2, 3, 3, 4, 4)
+                .distinctUntilChanged()
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("不连续重复的整型事件元素是： " + integer);
+                    }
+                });
+
+        /*
+        05-08 17:47:44.386 18393-18393/com.blood.rx2 I/LLOG --->: 不重复的整型事件元素是： 1
+        05-08 17:47:44.386 18393-18393/com.blood.rx2 I/LLOG --->: 不重复的整型事件元素是： 2
+        05-08 17:47:44.386 18393-18393/com.blood.rx2 I/LLOG --->: 不重复的整型事件元素是： 3
+
+        05-08 17:47:44.387 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 1
+        05-08 17:47:44.388 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 2
+        05-08 17:47:44.388 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 3
+        05-08 17:47:44.388 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 1
+        05-08 17:47:44.388 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 2
+        05-08 17:47:44.388 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 3
+        05-08 17:47:44.388 18393-18393/com.blood.rx2 I/LLOG --->: 不连续重复的整型事件元素是： 4
+         */
+    }
+
+    // 跳过某个事件，另外，skipLast 同理
+    private void skip() {
+        Observable.just(1, 2, 3, 4, 5, 6)
+                .skip(2)
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("skip " + integer);
+                    }
+                });
+
+        /*
+        05-08 17:45:11.104 16905-16905/com.blood.rx2 I/LLOG --->: skip 3
+        05-08 17:45:11.104 16905-16905/com.blood.rx2 I/LLOG --->: skip 4
+        05-08 17:45:11.104 16905-16905/com.blood.rx2 I/LLOG --->: skip 5
+        05-08 17:45:11.104 16905-16905/com.blood.rx2 I/LLOG --->: skip 6
+         */
+    }
+
+    // 过滤 特定数据类型的数据
+    private void ofType() {
+        Observable.just(1, "a", 3L, true)
+                .ofType(Long.class)
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        LLog.i("ofType " + aLong);
+                    }
+                });
+
+        /*
+        05-08 17:42:30.760 15193-15193/com.blood.rx2 I/LLOG --->: ofType 3
+         */
+    }
+
+    private void filter() {
+        Observable.just(1, 7, 9, 3, 4)
+                .filter(new Predicate<Integer>() {
+                    @Override
+                    public boolean test(Integer integer) throws Exception {
+                        return integer > 3;
+                    }
+                })
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("filter " + integer);
+                    }
+                });
+
+        /*
+        05-08 17:39:49.358 13541-13541/com.blood.rx2 I/LLOG --->: filter 7
+        05-08 17:39:49.358 13541-13541/com.blood.rx2 I/LLOG --->: filter 9
+        05-08 17:39:49.358 13541-13541/com.blood.rx2 I/LLOG --->: filter 4
+         */
+    }
+
+    // 遇到错误时，将发生的错误传递给一个新的被观察者（Observable），并决定是否需要重新订阅原始被观察者（Observable）& 发送事件
+    private void retryWhen() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(1);
+                emitter.onNext(2);
+                emitter.onError(new Throwable("throwable"));
+                emitter.onNext(3);
+            }
+        }).subscribeOn(Schedulers.newThread())
+                // 遇到error事件才会回调
+                .retryWhen(new Function<Observable<Throwable>, ObservableSource<?>>() {
+                    @Override
+                    public ObservableSource<?> apply(Observable<Throwable> throwableObservable) throws Exception {
+                        return throwableObservable.flatMap(new Function<Throwable, ObservableSource<?>>() {
+                            @Override
+                            public ObservableSource<?> apply(Throwable throwable) throws Exception {
+                                return Observable.error(new Throwable("终止 retry"));
+                            }
+                        });
+                    }
+                })
+                .subscribe(new Observer<Integer>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        LLog.i("retryWhen onNext " + integer);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        LLog.i("retryWhen " + e.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        LLog.i("retryWhen onComplete");
+                    }
+                });
+
+        /*
+        05-08 17:24:57.578 8492-9094/com.blood.rx2 I/LLOG --->: retryWhen onNext 1
+        05-08 17:24:57.578 8492-9094/com.blood.rx2 I/LLOG --->: retryWhen onNext 2
+        05-08 17:24:57.582 8492-9094/com.blood.rx2 I/LLOG --->: retryWhen java.lang.Throwable: 终止 retry
+         */
+    }
+
+    // 出现错误后，判断是否需要重新发送数据
+    private void retryUntil() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(1);
+                emitter.onError(new Throwable("throwable"));
+            }
+        }).subscribeOn(Schedulers.newThread()).retryUntil(new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() throws Exception {
+                return false; // 返回 true 则不重新发送数据事件
+            }
+        }).subscribe(new Consumer<Integer>() {
+            @Override
+            public void accept(Integer integer) throws Exception {
+                LLog.i("retryUntil " + integer);
+            }
+        });
+    }
+
+    // 重试，即当出现错误时，让被观察者（Observable）重新发射数据
+    // 接收到 onError（）时，重新订阅 & 发送事件，Throwable 和 Exception都可拦截
+    private void retry() {
+        /*
+        <-- 1. retry（） -->
+        // 作用：出现错误时，让被观察者重新发送数据
+        // 注：若一直错误，则一直重新发送
+
+        <-- 2. retry（long time） -->
+        // 作用：出现错误时，让被观察者重新发送数据（具备重试次数限制
+        // 参数 = 重试次数
+
+        <-- 3. retry（Predicate predicate） -->
+        // 作用：出现错误后，判断是否需要重新发送数据（若需要重新发送& 持续遇到错误，则持续重试）
+        // 参数 = 判断逻辑
+
+        <--  4. retry（new BiPredicate<Integer, Throwable>） -->
+        // 作用：出现错误后，判断是否需要重新发送数据（若需要重新发送 & 持续遇到错误，则持续重试
+        // 参数 =  判断逻辑（传入当前重试次数 & 异常错误信息）
+
+        <-- 5. retry（long time,Predicate predicate） -->
+        // 作用：出现错误后，判断是否需要重新发送数据（具备重试次数限制
+        // 参数 = 设置重试次数 & 判断逻辑
+         */
+
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(1);
+                emitter.onNext(2);
+                emitter.onError(new Throwable("throwable"));
+            }
+        })
+                .retry()
+                .subscribeOn(Schedulers.newThread())
+                .subscribe(new Observer<Integer>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        LLog.i("onNext " + integer);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        LLog.i("onError " + e.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        LLog.i("onComplete");
+                    }
+                });
+
+        /*
+        05-08 16:42:08.431 16996-16996/? I/LLOG --->: onNext 1
+        05-08 16:42:08.431 16996-16996/? I/LLOG --->: onNext 2
+        05-08 16:42:08.431 16996-16996/? I/LLOG --->: onNext 1
+        05-08 16:42:08.431 16996-16996/? I/LLOG --->: onNext 2
+        05-08 16:42:08.431 16996-16996/? I/LLOG --->: onNext 1
+        05-08 16:42:08.431 16996-16996/? I/LLOG --->: onNext 2
+        ...... // 无限发送中
+         */
+    }
+
+    /**
+     * 遇到错误时，发送1个新的Observable
+     * <p>
+     * onErrorResumeNext（）拦截的错误 = Throwable；若需拦截Exception请用onExceptionResumeNext（）
+     * <p>
+     * 若onErrorResumeNext（）拦截的错误 = Exception，则会将错误传递给观察者的onError方法，也就是说不拦截！！！
+     */
+    private void onErrorResumeNext() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> e) throws Exception {
+                e.onNext(1);
+                e.onNext(2);
+                e.onError(new Throwable("发生错误了"));
+            }
+        }).onErrorResumeNext(new Function<Throwable, ObservableSource<? extends Integer>>() {
+            @Override
+            public ObservableSource<? extends Integer> apply(@NonNull Throwable throwable) throws Exception {
+
+                // 1. 捕捉错误异常
+                LLog.e("在onErrorReturn处理了错误: " + throwable.toString());
+
+                // 2. 发生错误事件后，发送一个新的被观察者 & 发送事件序列
+                return Observable.just(11, 22);
+
+            }
+        })
+                .subscribe(new Observer<Integer>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+
+                    }
+
+                    @Override
+                    public void onNext(Integer value) {
+                        LLog.i("接收到了事件" + value);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        LLog.e("对Error事件作出响应");
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        LLog.i("对Complete事件作出响应");
+                    }
+                });
+
+        /*
+        05-08 16:36:06.433 14125-14125/com.blood.rx2 I/LLOG --->: 接收到了事件1
+        05-08 16:36:06.433 14125-14125/com.blood.rx2 I/LLOG --->: 接收到了事件2
+        05-08 16:36:06.433 14125-14125/com.blood.rx2 E/LLOG --->: 在onErrorReturn处理了错误: java.lang.Throwable: 发生错误了
+        05-08 16:36:06.435 14125-14125/com.blood.rx2 I/LLOG --->: 接收到了事件11
+        05-08 16:36:06.435 14125-14125/com.blood.rx2 I/LLOG --->: 接收到了事件22
+        05-08 16:36:06.435 14125-14125/com.blood.rx2 I/LLOG --->: 对Complete事件作出响应
+         */
+    }
+
+    // 遇到错误时，发送1个特殊事件 & 正常终止
+    private void onErrorReturn() {
+        Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(1);
+                emitter.onError(new NullPointerException()); // 模拟异常
+            }
+        }).onErrorReturn(new Function<Throwable, Integer>() {
+            @Override
+            public Integer apply(Throwable throwable) throws Exception {
+                return 666; // 捕获到异常，返回666后，事件结束
+            }
+        }).subscribe(new Consumer<Integer>() {
+            @Override
+            public void accept(Integer integer) throws Exception {
+                LLog.i("onErrorReturn " + integer);
+            }
+        });
+
+        /*
+        05-08 15:56:07.917 1964-1964/com.blood.rx2 I/LLOG --->: onErrorReturn 1
+        05-08 15:56:07.917 1964-1964/com.blood.rx2 I/LLOG --->: onErrorReturn 666
+         */
+    }
+
+    // 使得被观察者延迟一段时间再发送事件
+    private void delay() {
+        Observable.just(1)
+                .doOnNext(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("delay doOnNext");
+                    }
+                })
+                .delay(2, TimeUnit.SECONDS)
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("delay accept " + integer);
+                    }
+                });
+
+        /*
+        间隔了2s
+        05-08 15:50:09.111 31593-31593/com.blood.rx2 I/LLOG --->: delay doOnNext
+        05-08 15:50:11.112 31593-32128/com.blood.rx2 I/LLOG --->: delay accept 1
+         */
+    }
+
+    private void subscribe() {
+        Observable.just(1)
+                .subscribe(new Observer<Integer>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
     }
 
     private void combine_and_show2() {

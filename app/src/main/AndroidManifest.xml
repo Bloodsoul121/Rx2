@@ -18,7 +18,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".main.FormActivity"></activity>
+        <activity android:name=".main.FormActivity" />
+        <activity android:name=".main.ShakeActivity" />
+        <activity android:name=".main.AssociativeWordActivity"></activity>
     </application>
 
 </manifest>

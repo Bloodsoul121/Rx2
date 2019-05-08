@@ -1,9 +1,11 @@
 package com.blood.rx2.main;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 
 import com.blood.rx2.R;
 import com.blood.rx2.model.Translation;
@@ -26,6 +28,8 @@ import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.BiConsumer;
+import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
@@ -63,6 +67,11 @@ public class MainActivity extends AppCompatActivity {
         List<String> list = new ArrayList<>();
         list.add("网络请求轮询（无条件）");
         list.add("网络请求轮询（有条件）");
+        list.add("网络请求嵌套回调");
+        list.add("从磁盘/内存缓存/网络中获取缓存数据");
+        list.add("合并数据源 & 同时展示 merge");
+        list.add("合并数据源 & 同时展示 zip");
+        list.add("联合判断多个事件（表单）");
         list.add("create");
         list.add("just");
         list.add("fromArray");
@@ -73,6 +82,19 @@ public class MainActivity extends AppCompatActivity {
         list.add("intervalRange");
         list.add("range");
         list.add("rangeLong");
+        list.add("map");
+        list.add("flatMap");
+        list.add("concatMap");
+        list.add("buffer");
+        list.add("concat");
+        list.add("merge");
+        list.add("concatDelayError");
+        list.add("zip");
+        list.add("combineLatest");
+        list.add("reduce");
+        list.add("collect");
+        list.add("startWith");
+        list.add("count");
         list.add("all");
         list.add("takeWhile");
         list.add("skipWhile");
@@ -96,6 +118,21 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case "网络请求轮询（有条件）":
                 interval_request_condition();
+                break;
+            case "网络请求嵌套回调":
+                request_double_callback();
+                break;
+            case "从磁盘/内存缓存/网络中获取缓存数据":
+                request_from_three_level_buffer();
+                break;
+            case "合并数据源 & 同时展示 merge":
+                combine_and_show();
+                break;
+            case "合并数据源 & 同时展示 zip":
+                combine_and_show2();
+                break;
+            case "联合判断多个事件（表单）":
+                startActivity(new Intent(this, FormActivity.class));
                 break;
             case "create":
                 create();
@@ -126,6 +163,45 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case "rangeLong":
                 rangeLong();
+                break;
+            case "map":
+                map();
+                break;
+            case "flatMap":
+                flatMap();
+                break;
+            case "concatMap":
+                concatMap();
+                break;
+            case "buffer":
+                buffer();
+                break;
+            case "concat":
+                concat();
+                break;
+            case "merge":
+                merge();
+                break;
+            case "concatDelayError":
+                concatDelayError();
+                break;
+            case "zip":
+                zip();
+                break;
+            case "combineLatest":
+                combineLatest();
+                break;
+            case "reduce":
+                reduce();
+                break;
+            case "collect":
+                collect();
+                break;
+            case "startWith":
+                startWith();
+                break;
+            case "count":
+                count();
                 break;
             case "all":
                 all();
@@ -167,6 +243,494 @@ public class MainActivity extends AppCompatActivity {
                 repeatWhen();
                 break;
         }
+    }
+
+    private void combine_and_show2() {
+        RetrofitService service = RetrofitManager.getInstance().createService(RetrofitService.class);
+        // 步骤3：采用Observable<...>形式 对 2个网络请求 进行封装
+        Observable<Translation> observable1 = service.register().subscribeOn(Schedulers.io()); // 新开线程进行网络请求1
+        Observable<Translation> observable2 = service.login().subscribeOn(Schedulers.io());// 新开线程进行网络请求2
+        // 即2个网络请求异步 & 同时发送
+
+        // 步骤4：通过使用Zip（）对两个网络请求进行合并再发送
+        Observable.zip(observable1, observable2,
+                new BiFunction<Translation, Translation, String>() {
+                    // 注：创建BiFunction对象传入的第3个参数 = 合并后数据的数据类型
+                    @Override
+                    public String apply(Translation translation1,
+                                        Translation translation2) throws Exception {
+                        return translation1.show() + " & " + translation2.show();
+                    }
+                }).observeOn(AndroidSchedulers.mainThread()) // 在主线程接收 & 处理数据
+                .subscribe(new Consumer<String>() {
+                    // 成功返回数据时调用
+                    @Override
+                    public void accept(String combine_infro) throws Exception {
+                        // 结合显示2个网络请求的数据结果
+                        LLog.i("最终接收到的数据是：" + combine_infro);
+                    }
+                }, new Consumer<Throwable>() {
+                    // 网络请求错误时调用
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        System.out.println("登录失败");
+                    }
+                });
+
+        /*
+        05-08 15:29:43.711 22940-22940/com.blood.rx2 I/LLOG --->: 最终接收到的数据是：hi registe & hi login
+         */
+    }
+
+    // 用于存放最终展示的数据
+    String result = "数据源来自 = ";
+
+    private void combine_and_show() {
+        /*
+         * 设置第1个Observable：通过网络获取数据
+         * 此处仅作网络请求的模拟
+         **/
+        Observable<String> network = Observable.just("网络");
+
+        /*
+         * 设置第2个Observable：通过本地文件获取数据
+         * 此处仅作本地文件请求的模拟
+         **/
+        Observable<String> file = Observable.just("本地文件");
+
+        /*
+         * 通过merge（）合并事件 & 同时发送事件
+         **/
+        Observable.merge(network, file)
+                .subscribe(new Observer<String>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+
+                    }
+
+                    @Override
+                    public void onNext(String s) {
+                        LLog.i("combine_and_show onNext " + s);
+                        result += s + "+";
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        LLog.i("combine_and_show onComplete " + result.substring(0, result.length() - 1));
+                    }
+                });
+
+        /*
+        05-08 15:23:46.994 20179-20179/com.blood.rx2 I/LLOG --->: combine_and_show onNext 网络
+        05-08 15:23:46.994 20179-20179/com.blood.rx2 I/LLOG --->: combine_and_show onNext 本地文件
+        05-08 15:23:46.995 20179-20179/com.blood.rx2 I/LLOG --->: combine_and_show onComplete 数据源来自 = 网络+本地文件
+         */
+    }
+
+    // 该2变量用于模拟内存缓存 & 磁盘缓存中的数据
+    String memoryCache = null;
+    String diskCache = "从磁盘缓存中获取数据";
+
+    private void request_from_three_level_buffer() {
+        /*
+         * 设置第1个Observable：检查内存缓存是否有该数据的缓存
+         **/
+        Observable<String> memory = Observable.create(new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(ObservableEmitter<String> emitter) throws Exception {
+                // 先判断内存缓存有无数据
+                if (memoryCache != null) {
+                    // 若有该数据，则发送
+                    emitter.onNext(memoryCache);
+                } else {
+                    // 若无该数据，则直接发送结束事件
+                    emitter.onComplete();
+                }
+            }
+        });
+
+        /*
+         * 设置第2个Observable：检查磁盘缓存是否有该数据的缓存
+         **/
+        Observable<String> disk = Observable.create(new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(ObservableEmitter<String> emitter) throws Exception {
+                // 先判断磁盘缓存有无数据
+                if (diskCache != null) {
+                    // 若有该数据，则发送
+                    emitter.onNext(diskCache);
+                } else {
+                    // 若无该数据，则直接发送结束事件
+                    emitter.onComplete();
+                }
+            }
+        });
+
+        /*
+         * 设置第3个Observable：通过网络获取数据
+         **/
+        Observable<String> network = Observable.just("从网络中获取数据");
+        // 此处仅作网络请求的模拟
+
+        /*
+         * 通过concat（） 和 firstElement（）操作符实现缓存功能
+         **/
+
+        // 1. 通过concat（）合并memory、disk、network 3个被观察者的事件（即检查内存缓存、磁盘缓存 & 发送网络请求）
+        //    并将它们按顺序串联成队列
+        Observable.concat(memory, disk, network)
+                // 2. 通过firstElement()，从串联队列中取出并发送第1个有效事件（Next事件），即依次判断检查memory、disk、network
+                .firstElement()
+                // 即本例的逻辑为：
+                // a. firstElement()取出第1个事件 = memory，即先判断内存缓存中有无数据缓存；由于memoryCache = null，即内存缓存中无数据，所以发送结束事件（视为无效事件）
+                // b. firstElement()继续取出第2个事件 = disk，即判断磁盘缓存中有无数据缓存：由于diskCache ≠ null，即磁盘缓存中有数据，所以发送Next事件（有效事件）
+                // c. 即firstElement()已发出第1个有效事件（disk事件），所以停止判断。
+
+                // 3. 观察者订阅
+                .subscribe(new Consumer<String>() {
+                    @Override
+                    public void accept(String s) throws Exception {
+                        LLog.i("request_from_three_level_buffer " + s);
+                    }
+                });
+
+        /*
+        05-08 14:48:57.965 8734-8734/com.blood.rx2 I/LLOG --->: request_from_three_level_buffer 从磁盘缓存中获取数据
+         */
+    }
+
+    // 统计被观察者发送事件的数量
+    private void count() {
+        Observable.just(1, 2, 3)
+                .count()
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        LLog.i("count " + aLong);
+                    }
+                });
+
+        /*
+        05-08 14:42:05.006 5581-5581/com.blood.rx2 I/LLOG --->: count 3
+         */
+    }
+
+    // 在一个被观察者发送事件前，追加发送一些数据 / 一个新的被观察者
+    private void startWith() {
+        Observable.just(1, 2, 3)
+                .startWith(4)
+                .startWithArray(5, 6)
+                .startWith(Observable.just(7, 8))
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("startWith " + integer);
+                    }
+                });
+
+        /*
+        05-08 14:39:47.335 4336-4336/com.blood.rx2 I/LLOG --->: startWith 7
+        05-08 14:39:47.335 4336-4336/com.blood.rx2 I/LLOG --->: startWith 8
+        05-08 14:39:47.335 4336-4336/com.blood.rx2 I/LLOG --->: startWith 5
+        05-08 14:39:47.335 4336-4336/com.blood.rx2 I/LLOG --->: startWith 6
+        05-08 14:39:47.336 4336-4336/com.blood.rx2 I/LLOG --->: startWith 4
+        05-08 14:39:47.336 4336-4336/com.blood.rx2 I/LLOG --->: startWith 1
+        05-08 14:39:47.336 4336-4336/com.blood.rx2 I/LLOG --->: startWith 2
+        05-08 14:39:47.336 4336-4336/com.blood.rx2 I/LLOG --->: startWith 3
+         */
+    }
+
+    // 将被观察者Observable发送的数据事件收集到一个数据结构里
+    private void collect() {
+        Observable.just(1, 2, 3)
+                .collect(new Callable<List<Integer>>() {
+                    @Override
+                    public List<Integer> call() throws Exception {
+                        return new ArrayList<>(); // 1. 创建数据结构（容器），用于收集被观察者发送的数据
+                    }
+                }, new BiConsumer<List<Integer>, Integer>() {
+                    @Override
+                    public void accept(List<Integer> list, Integer integer) throws Exception {
+                        // 参数说明：list = 容器，integer = 后者数据
+                        list.add(integer);
+                        // 对发送的数据进行收集
+                    }
+                })
+                .subscribe(new Consumer<List<Integer>>() {
+                    @Override
+                    public void accept(List<Integer> integers) throws Exception {
+                        LLog.i("collect " + integers.toString());
+                    }
+                });
+
+        /*
+        05-08 14:36:53.265 2819-2819/com.blood.rx2 I/LLOG --->: collect [1, 2, 3]
+         */
+    }
+
+    // 把被观察者需要发送的事件聚合成1个事件 & 发送
+    private void reduce() {
+        Observable.just(1, 2, 3, 4)
+                .reduce(new BiFunction<Integer, Integer, Integer>() {
+                    @Override
+                    public Integer apply(Integer integer, Integer integer2) throws Exception {
+                        return integer + integer2;
+                    }
+                })
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("reduce " + integer);
+                    }
+                });
+
+        /*
+        05-08 14:31:22.029 32474-32474/com.blood.rx2 I/LLOG --->: reduce 10
+         */
+    }
+
+    /**
+     * 当两个Observables中的任何一个发送了数据后，将先发送了数据的Observables 的最新（最后）一个数据
+     * 与 另外一个Observable发送的每个数据结合，最终基于该函数的结果发送数据
+     * <p>
+     * 与Zip（）的区别：Zip（） = 按个数合并，即1对1合并；CombineLatest（） = 按时间合并，即在同一个时间点上合并
+     */
+    private void combineLatest() {
+        Observable.combineLatest(Observable.just(1, 2, 3), Observable.intervalRange(4, 4, 1, 1, TimeUnit.SECONDS), new BiFunction<Integer, Long, String>() {
+            @Override
+            public String apply(Integer integer, Long aLong) throws Exception {
+                return integer + " -> " + aLong;
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override
+            public void accept(String s) throws Exception {
+                LLog.i("combineLatest " + s);
+            }
+        });
+
+        /*
+        05-08 14:26:41.032 30606-31018/com.blood.rx2 I/LLOG --->: combineLatest 3 -> 4
+        05-08 14:26:42.031 30606-31018/com.blood.rx2 I/LLOG --->: combineLatest 3 -> 5
+        05-08 14:26:43.031 30606-31018/com.blood.rx2 I/LLOG --->: combineLatest 3 -> 6
+        05-08 14:26:44.031 30606-31018/com.blood.rx2 I/LLOG --->: combineLatest 3 -> 7
+         */
+    }
+
+    // 合并 多个被观察者（Observable）发送的事件，生成一个新的事件序列（即组合过后的事件序列），并最终发送
+    // 最终合并的事件数量 = 多个被观察者（Observable）中数量最少的数量
+    private void zip() {
+        Observable.zip(Observable.just(1, 2, 3), Observable.just(4, 5, 6), new BiFunction<Integer, Integer, String>() {
+            @Override
+            public String apply(Integer integer, Integer integer2) throws Exception {
+                return integer + " " + integer2;
+            }
+        }).subscribe(new Consumer<String>() {
+            @Override
+            public void accept(String s) throws Exception {
+                LLog.i("zip " + s);
+            }
+        });
+
+        /*
+        05-08 14:18:27.739 26593-26593/com.blood.rx2 I/LLOG --->: zip 1 4
+        05-08 14:18:27.739 26593-26593/com.blood.rx2 I/LLOG --->: zip 2 5
+        05-08 14:18:27.739 26593-26593/com.blood.rx2 I/LLOG --->: zip 3 6
+         */
+    }
+
+    // 将 onError 事件推迟到其他观察者发送事件结束之后才触发
+    private void concatDelayError() {
+        Observable.concatArrayDelayError(Observable.create(new ObservableOnSubscribe<Integer>() {
+            @Override
+            public void subscribe(ObservableEmitter<Integer> emitter) throws Exception {
+                emitter.onNext(0);
+                emitter.onError(new NullPointerException());
+            }
+        }), Observable.just(1, 2, 3))
+                .subscribe(new Consumer<Object>() {
+                    @Override
+                    public void accept(Object o) throws Exception {
+                        LLog.i("concatDelayError " + o);
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        LLog.i("concatDelayError " + throwable);
+                    }
+                });
+
+        /*
+        05-08 14:11:38.627 23581-23581/com.blood.rx2 I/LLOG --->: concatDelayError 0
+        05-08 14:11:38.628 23581-23581/com.blood.rx2 I/LLOG --->: concatDelayError 1
+        05-08 14:11:38.628 23581-23581/com.blood.rx2 I/LLOG --->: concatDelayError 2
+        05-08 14:11:38.628 23581-23581/com.blood.rx2 I/LLOG --->: concatDelayError 3
+        05-08 14:11:38.628 23581-23581/com.blood.rx2 I/LLOG --->: concatDelayError java.lang.NullPointerException
+         */
+    }
+
+    // 组合多个被观察者一起发送数据，合并后 按时间线并行执行
+    // 区别：组合被观察者的数量，即merge（）组合被观察者数量≤4个，而mergeArray（）则可＞4个
+    private void merge() {
+        Observable.merge(Observable.intervalRange(0, 3, 1, 1, TimeUnit.SECONDS),
+                Observable.intervalRange(6, 3, 1, 1, TimeUnit.SECONDS))
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long integer) throws Exception {
+                        LLog.i("merge " + integer);
+                    }
+                });
+
+//        Observable.mergeArray(); // 同理
+
+        /*
+        05-08 13:59:09.674 19385-20170/com.blood.rx2 I/LLOG --->: merge 0
+        05-08 13:59:09.675 19385-20172/com.blood.rx2 I/LLOG --->: merge 6
+        05-08 13:59:10.673 19385-20170/com.blood.rx2 I/LLOG --->: merge 1
+        05-08 13:59:10.674 19385-20172/com.blood.rx2 I/LLOG --->: merge 7
+        05-08 13:59:11.673 19385-20170/com.blood.rx2 I/LLOG --->: merge 2
+        05-08 13:59:11.674 19385-20172/com.blood.rx2 I/LLOG --->: merge 8
+         */
+    }
+
+    // 组合多个被观察者一起发送数据，合并后 按发送顺序串行执行
+    // 区别：组合被观察者的数量，即concat（）组合被观察者数量≤4个，而concatArray（）则可＞4个
+    private void concat() {
+        Observable.concat(Observable.just(1, 2, 3), Observable.just(4, 5), Observable.just(6, 7))
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("concat " + integer);
+                    }
+                });
+
+//        Observable.concatArray(); // 同理
+
+        /*
+        05-08 13:52:07.602 15396-15396/com.blood.rx2 I/LLOG --->: concat 1
+        05-08 13:52:07.602 15396-15396/com.blood.rx2 I/LLOG --->: concat 2
+        05-08 13:52:07.602 15396-15396/com.blood.rx2 I/LLOG --->: concat 3
+        05-08 13:52:07.603 15396-15396/com.blood.rx2 I/LLOG --->: concat 4
+        05-08 13:52:07.603 15396-15396/com.blood.rx2 I/LLOG --->: concat 5
+        05-08 13:52:07.603 15396-15396/com.blood.rx2 I/LLOG --->: concat 6
+        05-08 13:52:07.603 15396-15396/com.blood.rx2 I/LLOG --->: concat 7
+         */
+    }
+
+    private void request_double_callback() {
+        RetrofitService service = RetrofitManager.getInstance().createService(RetrofitService.class);
+        Observable<Translation> register = service.register();
+        final Observable<Translation> login = service.login();
+        register.subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
+                .flatMap(new Function<Translation, ObservableSource<Translation>>() {
+                    @Override
+                    public ObservableSource<Translation> apply(Translation translation) throws Exception {
+                        // 这里可以对第一个网络请求的结果进行处理
+                        return login;
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Translation>() {
+                    @Override
+                    public void accept(Translation translation) throws Exception {
+                        LLog.i("登录成功");
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        LLog.i("登录失败");
+                    }
+                });
+    }
+
+    // 定期从 被观察者（Obervable）需要发送的事件中 获取一定数量的事件 & 放到缓存区中，最终发送
+    // 也就是缓存区大小固定，然后定义每次新放入到缓存区的个数
+    private void buffer() {
+        Observable.just(1, 2, 3, 4, 5)
+                // 设置缓存区大小 & 步长
+                // 缓存区大小 = 每次从被观察者中获取的事件数量
+                // 步长 = 每次获取新事件的数量
+                .buffer(3, 1)
+                .subscribe(new Consumer<List<Integer>>() {
+                    @Override
+                    public void accept(List<Integer> integers) throws Exception {
+                        LLog.i("buffer " + integers.toString());
+                    }
+                });
+
+        /*
+        05-08 11:39:11.984 9957-9957/com.blood.rx2 I/LLOG --->: buffer [1, 2, 3]
+        05-08 11:39:11.984 9957-9957/com.blood.rx2 I/LLOG --->: buffer [2, 3, 4]
+        05-08 11:39:11.984 9957-9957/com.blood.rx2 I/LLOG --->: buffer [3, 4, 5]
+        05-08 11:39:11.984 9957-9957/com.blood.rx2 I/LLOG --->: buffer [4, 5]
+        05-08 11:39:11.984 9957-9957/com.blood.rx2 I/LLOG --->: buffer [5]
+         */
+    }
+
+    // 类似 flatMap（）操作符（区别：有序的）
+    private void concatMap() {
+        Observable.just(1, 2, 3)
+                .flatMap(new Function<Integer, ObservableSource<Integer>>() {
+                    @Override
+                    public ObservableSource<Integer> apply(Integer integer) throws Exception {
+                        return Observable.just(integer * 2, integer * 3);
+                    }
+                })
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("concatMap " + integer);
+                    }
+                });
+    }
+
+    // 将被观察者发送的事件序列进行 拆分 & 单独转换，再合并成一个新的事件序列，最后再进行发送（无序的，重点！）
+    private void flatMap() {
+        Observable.just(1, 2, 3)
+                .flatMap(new Function<Integer, ObservableSource<Integer>>() {
+                    @Override
+                    public ObservableSource<Integer> apply(Integer integer) throws Exception {
+                        return Observable.just(integer * 2, integer * 3);
+                    }
+                })
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+                        LLog.i("flatMap " + integer);
+                    }
+                });
+
+        /*
+        事件可能是打乱顺序的，例如 646329
+        05-08 11:29:32.429 8112-8112/com.blood.rx2 I/LLOG --->: flatMap 2
+        05-08 11:29:32.429 8112-8112/com.blood.rx2 I/LLOG --->: flatMap 3
+        05-08 11:29:32.429 8112-8112/com.blood.rx2 I/LLOG --->: flatMap 4
+        05-08 11:29:32.429 8112-8112/com.blood.rx2 I/LLOG --->: flatMap 6
+        05-08 11:29:32.429 8112-8112/com.blood.rx2 I/LLOG --->: flatMap 6
+        05-08 11:29:32.430 8112-8112/com.blood.rx2 I/LLOG --->: flatMap 9
+         */
+    }
+
+    // 对 被观察者发送的每1个事件都通过 指定的函数 处理，从而变换成另外一种事件
+    private void map() {
+        Observable.just(1, 2, 3)
+                .map(new Function<Integer, String>() {
+                    @Override
+                    public String apply(Integer integer) throws Exception {
+                        return "integer : " + integer;
+                    }
+                })
+                .subscribe(new Consumer<String>() {
+                    @Override
+                    public void accept(String s) throws Exception {
+                        LLog.i("map " + s);
+                    }
+                });
     }
 
     // 设置变量 = 模拟轮询服务器次数

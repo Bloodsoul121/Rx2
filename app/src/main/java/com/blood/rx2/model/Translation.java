@@ -16,7 +16,8 @@ public class Translation {
     }
 
     //定义 输出返回数据 的方法
-    public void show() {
+    public String show() {
         Log.d("RxJava", content.out);
+        return content.out;
     }
 }

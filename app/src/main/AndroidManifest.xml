@@ -20,7 +20,8 @@
         </activity>
         <activity android:name=".main.FormActivity" />
         <activity android:name=".main.ShakeActivity" />
-        <activity android:name=".main.AssociativeWordActivity"></activity>
+        <activity android:name=".main.AssociativeWordActivity" />
+        <activity android:name=".main.BackpressedActivity"></activity>
     </application>
 
 </manifest>

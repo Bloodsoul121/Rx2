@@ -128,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
         list.add("firstElement");
         list.add("elementAt");
         list.add("elementAtOrError");
+        list.add("背压");
         return list;
     }
 
@@ -319,7 +320,14 @@ public class MainActivity extends AppCompatActivity {
             case "elementAtOrError":
                 elementAtOrError();
                 break;
+            case "背压":
+                backpressed();
+                break;
         }
+    }
+
+    private void backpressed() {
+        startActivity(new Intent(this, BackpressedActivity.class));
     }
 
     private void associative_word() {
